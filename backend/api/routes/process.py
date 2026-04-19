@@ -48,6 +48,10 @@ async def process_document(
     if not raw_text:
         raise HTTPException(status_code=422, detail="No text found for this job.")
 
+    # Store profile so background worker can access it independently
+    job_store.set_profile(job_id, profile)
+    job_store.update_status(job_id, JobStatus.PENDING, stage="fast_processing")
+
     # ── Step 1: Filter lines ─────────────────────────────────────────────
     filtered_lines, ambiguous_phrases = filter_lines(raw_text)
 

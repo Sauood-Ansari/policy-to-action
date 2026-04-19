@@ -1,7 +1,6 @@
 """
 Rule Engine — Eligibility Checker (NO AI)
-Evaluates extracted eligibility rules against the user's profile.
-Uses structured pattern matching — no AI required.
+Evaluates extracted eligibility rules against the user profile.
 """
 import re
 from api.schemas import UserProfile, ExtractedData, EligibilityResult
@@ -9,149 +8,120 @@ from api.schemas import UserProfile, ExtractedData, EligibilityResult
 
 def check_eligibility(extracted: ExtractedData,
                       profile: UserProfile) -> list[EligibilityResult]:
-    """
-    Evaluate each eligibility rule against the user profile.
-    Returns a list of EligibilityResult.
-    """
     results: list[EligibilityResult] = []
 
     for rule in extracted.eligibility:
         rule_lower = rule.lower()
 
-        # ── CGPA / GPA ──────────────────────────────────────────────────
-        cgpa_match = re.search(
-            r"\b(cgpa|gpa)\s*([><=≥≤]{1,2}|above|below|minimum|at\s+least|"
-            r"not\s+less\s+than)\s*(\d+(?:\.\d+)?)",
-            rule_lower,
+        # ── Minimum CGPA ─────────────────────────────────────────────────
+        cgpa_m = re.search(
+            r"(?:minimum\s+)?cgpa[:\s]*(?:of\s+)?(\d+(?:\.\d+)?)",
+            rule_lower
         )
-        if cgpa_match:
-            operator = cgpa_match.group(2).strip()
-            threshold = float(cgpa_match.group(3))
-            result = _compare_numeric(
-                label     = f"CGPA {operator} {threshold}",
-                user_val  = profile.cgpa,
-                threshold = threshold,
-                operator  = operator,
-            )
-            results.append(result)
-            continue
-
-        # ── Percentage / Aggregate ───────────────────────────────────────
-        pct_match = re.search(
-            r"\b(percentage|aggregate|marks|score)\s*"
-            r"([><=≥≤]{1,2}|above|below|minimum|at\s+least)\s*(\d+(?:\.\d+)?)",
-            rule_lower,
-        )
-        if pct_match:
-            operator  = pct_match.group(2).strip()
-            threshold = float(pct_match.group(3))
-            result = _compare_numeric(
-                label     = f"Percentage {operator} {threshold}",
-                user_val  = profile.percentage,
-                threshold = threshold,
-                operator  = operator,
-            )
-            results.append(result)
-            continue
-
-        # ── No backlog / No arrear ───────────────────────────────────────
-        if re.search(r"\b(no\s+backlog|no\s+arrear|zero\s+backlog)\b", rule_lower):
+        if cgpa_m:
+            threshold = float(cgpa_m.group(1))
+            eligible  = profile.cgpa >= threshold
             results.append(EligibilityResult(
                 rule     = rule,
-                eligible = True,
-                reason   = "Cannot verify backlog status automatically — please confirm",
+                eligible = eligible,
+                reason   = (
+                    f"Your CGPA {profile.cgpa} meets minimum {threshold}"
+                    if eligible
+                    else f"Your CGPA {profile.cgpa} is below required {threshold}"
+                ),
             ))
             continue
 
-        # ── Branch / stream — require explicit separator ─────────────────
-        branch_match = re.search(
-            r"\b(branch|stream)\s*[:\-]\s*(.+)", rule_lower
+        # ── Minimum percentage ───────────────────────────────────────────
+        pct_m = re.search(
+            r"(?:minimum\s+)?percentage[:\s]*(?:of\s+)?(\d+(?:\.\d+)?)",
+            rule_lower
         )
-        if branch_match and profile.branch:
-            allowed_text = branch_match.group(2)
+        if not pct_m:
+            pct_m = re.search(r"(\d+(?:\.\d+)?)\s*%", rule_lower)
+        if pct_m:
+            threshold = float(pct_m.group(1))
+            eligible  = profile.percentage >= threshold
+            results.append(EligibilityResult(
+                rule     = rule,
+                eligible = eligible,
+                reason   = (
+                    f"Your percentage {profile.percentage}% meets minimum {threshold}%"
+                    if eligible
+                    else f"Your percentage {profile.percentage}% is below required {threshold}%"
+                ),
+            ))
+            continue
+
+        # ── Programme (B.Tech / M.Tech / MCA …) ─────────────────────────
+        if rule_lower.startswith("programme:"):
+            # Informational only — we don't store programme in profile
+            results.append(EligibilityResult(
+                rule     = rule,
+                eligible = True,
+                reason   = "Please verify your programme is listed",
+            ))
+            continue
+
+        # ── No backlog ───────────────────────────────────────────────────
+        if re.search(r"\b(no\s+(?:active\s+)?backlog|no\s+arrear)\b", rule_lower):
+            results.append(EligibilityResult(
+                rule     = rule,
+                eligible = True,
+                reason   = "Cannot verify backlog status — please confirm",
+            ))
+            continue
+
+        # ── Branch / stream ──────────────────────────────────────────────
+        branch_m = re.search(r"\b(?:branch|stream)\s*[:\-]\s*(.+)", rule_lower)
+        if branch_m and profile.branch:
+            allowed_text = branch_m.group(1)
             allowed = [b.strip() for b in re.split(r"[,/&]", allowed_text) if b.strip()]
             user_branch = profile.branch.lower().strip()
-            match_found = any(
-                user_branch in b or b in user_branch
-                for b in allowed
-            )
+            match_found = any(user_branch in b or b in user_branch for b in allowed)
             results.append(EligibilityResult(
                 rule     = rule,
                 eligible = match_found,
                 reason   = (
                     f"Your branch '{profile.branch}' matches"
                     if match_found
-                    else f"Your branch '{profile.branch}' is not in allowed list: {allowed_text}"
+                    else f"Your branch '{profile.branch}' not in: {allowed_text}"
                 ),
             ))
             continue
 
         # ── Year of study ────────────────────────────────────────────────
-        year_match = re.search(r"(\d+)\s*(?:st|nd|rd|th)?\s*year", rule_lower)
-        if year_match and profile.year_of_study:
-            required_year = int(year_match.group(1))
-            eligible      = profile.year_of_study >= required_year
-            results.append(EligibilityResult(
-                rule     = rule,
-                eligible = eligible,
-                reason   = (
-                    f"You are in year {profile.year_of_study}"
-                    if eligible
-                    else f"Requires year {required_year}, you are in year {profile.year_of_study}"
-                ),
-            ))
-            continue
+        year_m = re.search(r"year\s+of\s+study[:\s]+(.+)", rule_lower)
+        if year_m and profile.year_of_study:
+            allowed_years = re.findall(r"\d+", year_m.group(1))
+            if allowed_years:
+                eligible = str(profile.year_of_study) in allowed_years
+                results.append(EligibilityResult(
+                    rule     = rule,
+                    eligible = eligible,
+                    reason   = (
+                        f"You are in year {profile.year_of_study} ✓"
+                        if eligible
+                        else f"Year {profile.year_of_study} not in allowed years: {', '.join(allowed_years)}"
+                    ),
+                ))
+                continue
 
         # ── Age limit ────────────────────────────────────────────────────
-        age_match = re.search(r"age\s*(?:limit)?\s*[:<]?\s*(\d+)", rule_lower)
-        if age_match:
-            # We don't store age in profile, mark as pending
+        age_m = re.search(r"age\s*(?:limit)?\s*[:<]?\s*(\d+)", rule_lower)
+        if age_m:
             results.append(EligibilityResult(
                 rule     = rule,
                 eligible = True,
-                reason   = f"Please verify: age limit is {age_match.group(1)} years",
+                reason   = f"Please verify: age limit is {age_m.group(1)} years",
             ))
             continue
 
-        # ── Unrecognised rule: mark as pending ───────────────────────────
+        # ── Fallback ─────────────────────────────────────────────────────
         results.append(EligibilityResult(
             rule     = rule,
             eligible = True,
-            reason   = "Could not evaluate automatically — please verify manually",
+            reason   = "Please verify this criterion manually",
         ))
 
     return results
-
-
-# ── Helpers ────────────────────────────────────────────────────────────────
-
-def _compare_numeric(label: str,
-                     user_val: float,
-                     threshold: float,
-                     operator: str) -> EligibilityResult:
-    op = operator.strip().lower()
-
-    op_clean = op.strip().lower().split()[0]   # "of 7.5" → "of"
-
-    if op_clean in (">", "above"):
-        eligible = user_val > threshold
-    elif op_clean in (">=", "≥", "minimum", "at", "not", "of"):
-        eligible = user_val >= threshold
-    elif op_clean in ("<", "below"):
-        eligible = user_val < threshold
-    elif op_clean in ("<=", "≤"):
-        eligible = user_val <= threshold
-    elif op_clean == "=":
-        eligible = abs(user_val - threshold) < 0.01
-    else:
-        eligible = user_val >= threshold   # safe default
-
-    return EligibilityResult(
-        rule     = label,
-        eligible = eligible,
-        reason   = (
-            f"Your value {user_val} meets the requirement"
-            if eligible
-            else f"Your value {user_val} does not meet {label}"
-        ),
-    )

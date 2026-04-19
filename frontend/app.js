@@ -181,14 +181,39 @@ function startPoll(jobId) {
     const status = await fetchStatus(jobId);
     if (!status) return;
 
+    // Show live stage label while AI is running
+    if (!status.ai_complete && status.stage_label) {
+      const elapsed = status.elapsed_sec ? ` (${status.elapsed_sec}s)` : "";
+      setStatus(`${status.stage_label}${elapsed}`, "processing");
+    }
+
     if (status.ai_complete) {
       stopPoll();
       const result = await fetchResult(jobId);
       if (result) {
         renderResult(result);
-        setStatus("Analysis complete — AI refined", "done");
+        // Show AI reasons if any were logged
+        const reasons = status.ai_reasons || [];
+        const note = result.ai_was_used
+          ? "AI refined result ready"
+          : "Analysis complete (rule-based)";
+        setStatus(note, "done");
+        if (reasons.length) {
+          console.info("[AI triggered because]", reasons);
+        }
+        // If AI failed gracefully, show a soft warning
+        if (result.error) {
+          addSystemAlert(result.error);
+        }
       }
     }
+
+    // Hard stop if something went very wrong
+    if (status.status === "failed") {
+      stopPoll();
+      setStatus("AI refinement failed — showing rule-based result", "error");
+    }
+
   }, POLL_MS);
 }
 
@@ -347,6 +372,15 @@ function clearResults() {
   aiBadge.classList.add("hidden");
   confidenceBadge.textContent = "";
   resultsEmpty.classList.remove("hidden");
+}
+
+function addSystemAlert(msg) {
+  if (!msg) return;
+  alertsSection.classList.remove("hidden");
+  const div = document.createElement("div");
+  div.className = "alert-item info";
+  div.innerHTML = `<span class="alert-dot"></span><span>${escHtml(msg)}</span>`;
+  alertsList.prepend(div);
 }
 
 function escHtml(str) {
