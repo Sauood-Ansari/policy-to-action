@@ -1,0 +1,16 @@
+{
+  "name": "Sauood Khan",
+  "cgpa": 8.2,
+  "percentage": 82.0,
+  "branch": "Computer Science",
+  "year_of_study": 2,
+  "semester": 4,
+  "nationality": "Indian",
+  "available_docs": [
+    "aadhar",
+    "marksheet",
+    "photograph",
+    "bonafide",
+    "resume"
+  ]
+}

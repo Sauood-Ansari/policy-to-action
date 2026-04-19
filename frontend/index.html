@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Policy-to-Action Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- ── Header ─────────────────────────────────────────── -->
+    <header class="header">
+      <div class="header-inner">
+        <div class="logo">
+          <span class="logo-icon">⬡</span>
+          <span class="logo-text">Policy<span class="accent">→</span>Action</span>
+        </div>
+        <p class="tagline">Upload any notice. Get an instant action plan.</p>
+      </div>
+    </header>
+
+    <!-- ── Main layout ────────────────────────────────────── -->
+    <main class="main">
+
+      <!-- Left panel: upload + profile -->
+      <aside class="panel panel--input">
+
+        <!-- Upload zone -->
+        <section class="card" id="upload-card">
+          <h2 class="card-title">Document</h2>
+          <div class="upload-zone" id="upload-zone">
+            <div class="upload-icon">📄</div>
+            <p class="upload-text">Drop PDF, image or text file here</p>
+            <p class="upload-sub">or</p>
+            <label class="btn btn--ghost" for="file-input">Browse file</label>
+            <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.txt,.md" hidden />
+          </div>
+          <div class="file-info hidden" id="file-info">
+            <span class="file-badge" id="file-name">—</span>
+            <button class="btn-clear" id="clear-file">✕</button>
+          </div>
+        </section>
+
+        <!-- Profile form -->
+        <section class="card" id="profile-card">
+          <h2 class="card-title">Your Profile</h2>
+          <div class="form-grid">
+            <label class="form-label">
+              Name
+              <input class="form-input" id="p-name" type="text" placeholder="Your name" />
+            </label>
+            <label class="form-label">
+              CGPA
+              <input class="form-input" id="p-cgpa" type="number" step="0.01" min="0" max="10" placeholder="e.g. 8.2" />
+            </label>
+            <label class="form-label">
+              Percentage %
+              <input class="form-input" id="p-pct" type="number" step="0.1" min="0" max="100" placeholder="e.g. 82" />
+            </label>
+            <label class="form-label">
+              Branch
+              <input class="form-input" id="p-branch" type="text" placeholder="e.g. Computer Science" />
+            </label>
+            <label class="form-label">
+              Year of Study
+              <input class="form-input" id="p-year" type="number" min="1" max="6" placeholder="1–6" />
+            </label>
+            <label class="form-label">
+              Semester
+              <input class="form-input" id="p-sem" type="number" min="1" max="12" placeholder="1–12" />
+            </label>
+          </div>
+
+          <label class="form-label docs-label">
+            Documents you have
+            <span class="hint">(comma-separated)</span>
+            <textarea class="form-input form-textarea" id="p-docs"
+              placeholder="e.g. aadhar, marksheet, photograph, bonafide, resume, noc"></textarea>
+          </label>
+
+          <button class="btn btn--primary" id="analyse-btn" disabled>
+            <span class="btn-text">Analyse Document</span>
+            <span class="btn-spinner hidden">⟳</span>
+          </button>
+        </section>
+
+      </aside>
+
+      <!-- Right panel: results -->
+      <section class="panel panel--output" id="results-panel">
+
+        <div class="results-empty" id="results-empty">
+          <div class="empty-graphic">
+            <div class="empty-circle c1"></div>
+            <div class="empty-circle c2"></div>
+            <div class="empty-circle c3"></div>
+            <span class="empty-icon">⬡</span>
+          </div>
+          <p class="empty-text">Your action plan will appear here</p>
+        </div>
+
+        <!-- Status bar (shown during/after processing) -->
+        <div class="status-bar hidden" id="status-bar">
+          <div class="status-dot" id="status-dot"></div>
+          <span class="status-text" id="status-text">Processing…</span>
+          <span class="confidence-badge" id="confidence-badge"></span>
+          <span class="ai-badge hidden" id="ai-badge">✦ AI refined</span>
+        </div>
+
+        <!-- Alerts -->
+        <div class="result-section hidden" id="alerts-section">
+          <h3 class="section-title">Alerts</h3>
+          <div id="alerts-list"></div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="result-section hidden" id="timeline-section">
+          <h3 class="section-title">Timeline</h3>
+          <div id="timeline-list"></div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="result-section hidden" id="checklist-section">
+          <h3 class="section-title">Checklist</h3>
+
+          <div class="checklist-tabs">
+            <button class="tab-btn active" data-cat="all">All</button>
+            <button class="tab-btn" data-cat="documents">Documents</button>
+            <button class="tab-btn" data-cat="eligibility">Eligibility</button>
+            <button class="tab-btn" data-cat="submission">Submission</button>
+          </div>
+          <div id="checklist-list"></div>
+        </div>
+
+        <!-- Extracted data (collapsible) -->
+        <div class="result-section hidden" id="extracted-section">
+          <h3 class="section-title collapsible-trigger" id="extracted-toggle">
+            Extracted Data <span class="toggle-arrow">▾</span>
+          </h3>
+          <div id="extracted-body"></div>
+        </div>
+
+      </section>
+    </main>
+
+  </div><!-- .app -->
+
+  <script src="app.js"></script>
+</body>
+</html>
