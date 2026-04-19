@@ -1,7 +1,6 @@
-"""
-OCR Handler — wraps pytesseract for image-based documents.
-Applies basic preprocessing to improve recognition accuracy.
-"""
+
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 import io
 
 
